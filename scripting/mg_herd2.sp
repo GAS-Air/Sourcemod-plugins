@@ -77,7 +77,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 				MG_Stop();
 				return; 
 			}
-		} while (!IsFakeClient(g_iTarget));
+		} while (IsFakeClient(g_iTarget));
 		for (int i = 0; i <= MaxClients; i++) {
 	 		if(AC_IsClientValid(i) && IsPlayerAlive(i)) {
 	 			SDKHook(i, SDKHook_OnTakeDamage, OnTakeDamage);
@@ -95,7 +95,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 						case 2:{
 							 //ghost
 							SetEntityRenderMode(i, RENDER_TRANSCOLOR);
-  							SetEntityRenderColor(i, 255,255,255,128);
+  							SetEntityRenderColor(i, 255,255,255,100);
   							PrintToChat(i, "%s Вы прозрачный УУУУУУ!", TAG);
 							
 						}
@@ -237,6 +237,7 @@ stock void MG_Stop(int reward = 0){
 	AskStart = false;
 	for (int i = 0; i <= MaxClients; i++) {
 		if(AC_IsClientValid(i)) {
+			g_bPumpkin[i] = false;
 			ClientCommand(i, "firstperson");
 			SDKUnhook(i, SDKHook_OnTakeDamage, OnTakeDamage);
 		}
@@ -261,7 +262,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 	if(Started && AC_IsClientValid(victim)) {
 		if(AC_IsClientValid(attacker)) {
 			if(attacker != g_iTarget) {
-				if(g_bPumpkin[attacker]){
+				if(g_bPumpkin[attacker] && victim == g_iTarget) {
 					PrintToChatAll("Цыпа %N клюнул пастуха %N", attacker, victim);
 					damage = 3.0;
 					return Plugin_Changed;
@@ -313,7 +314,7 @@ stock void CS_RemoveAllWeapons(int client) {
 	for (int slot = 0; slot < 6; slot++)	{
 		while ((weapon_index = GetPlayerWeaponSlot(client, slot)) != -1) {
 			if (IsValidEntity(weapon_index)) {
-				if (slot == 4 ) return; // Бомба
+				//if (slot == 4 ) return; // Бомба
 				RemovePlayerItem(client, weapon_index);
 				AcceptEntityInput(weapon_index, "kill");
 			}
