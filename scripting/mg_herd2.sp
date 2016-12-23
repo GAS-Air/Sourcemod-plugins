@@ -14,7 +14,7 @@
 
 bool Started = false, AskStart = false;
 int informer[MAXPLAYERS + 1] = {0,...}, g_iTarget = -1, id = -1;
-bool g_bThirdperson[MAXPLAYERS + 1] = {false, ...};
+bool g_bThirdperson[MAXPLAYERS + 1] = {false, ...}, g_bPumpkin[MAXPLAYERS + 1] = {false, ...};
 Handle kokokoTimer;
 
 public Plugin myinfo = {
@@ -71,11 +71,13 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 	}
 	if(Started) {
 		SetConVarBool(FindConVar("mp_teammates_are_enemies"), true);
-		g_iTarget = AC_GetRandomPlayer();
-		if(g_iTarget == -1) {
-			MG_Stop();
-			return;
-		}
+		do {
+			g_iTarget = AC_GetRandomPlayer();
+			if(g_iTarget == -1) {
+				MG_Stop();
+				return; 
+			}
+		} while (!IsFakeClient(g_iTarget));
 		for (int i = 0; i <= MaxClients; i++) {
 	 		if(AC_IsClientValid(i) && IsPlayerAlive(i)) {
 	 			SDKHook(i, SDKHook_OnTakeDamage, OnTakeDamage);
@@ -83,9 +85,39 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 	 			CS_RemoveAllWeapons(i);
 				GivePlayerItem(i, "weapon_knife");
 				if(i != g_iTarget) {
+					int type = GetRandomInt(1, 5);
+					switch(type){
+						case 1:{
+							 //chickenbirth
+							AC_SetSpeed(i, 1.15);
+							PrintToChat(i, "%s У вас повышенная скорость!", TAG);
+						}
+						case 2:{
+							 //ghost
+							SetEntityRenderMode(i, RENDER_TRANSCOLOR);
+  							SetEntityRenderColor(i, 255,255,255,128);
+  							PrintToChat(i, "%s Вы прозрачный УУУУУУ!", TAG);
+							
+						}
+						case 3:{
+							//christm
+							SetEntProp(i, Prop_Data, "m_iHealth", 1555);
+							PrintToChat(i, "%s У вас повышенное здоровье!", TAG);
+						}
+						case 4:{
+							//krolick
+							SetEntityGravity(i, 0.8);
+							PrintToChat(i, "%s У вас пониженная гравитация!", TAG);
+						}
+						case 5:{
+							//pumphin
+							g_bPumpkin[i] = true;
+							PrintToChat(i, "%s Вы живете по понятиям, пастух нет, атакуйте его!", TAG);
+						}
+					}
 					CreateTimer(2.0, Timer_PetyxInform, i);
 			 		SetEntityModel(i, CHICKENMODEL);
-			 		SetEntProp(i, Prop_Send, "m_nBody", GetRandomInt(1, 5));
+			 		SetEntProp(i, Prop_Send, "m_nBody", type);
 			 		ClientCommand(i, "thirdperson");
 					g_bThirdperson[i] = true;
 					//PrintToChatAll("%N пастух!", g_iTarget);
@@ -229,6 +261,11 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 	if(Started && AC_IsClientValid(victim)) {
 		if(AC_IsClientValid(attacker)) {
 			if(attacker != g_iTarget) {
+				if(g_bPumpkin[attacker]){
+					PrintToChatAll("Цыпа %N клюнул пастуха %N", attacker, victim);
+					damage = 3.0;
+					return Plugin_Changed;
+				}
 				PrintToChat(attacker, "%s Вы не можете атаковать цель во время %sПастуха.", TAG, COLOR);
 				return Plugin_Stop;
 			} else {
