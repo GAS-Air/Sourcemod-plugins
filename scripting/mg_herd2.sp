@@ -47,7 +47,7 @@ public void OnPluginStart() {
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
 	if(MG_IsCoreReady(id) && id==-1) {
-		//PrintToChatAll("%s Мини-игра %s%s\x01 загружена! (late)", TAG, COLOR, TITLE);
+		PrintToChatAll("%s Мини-игра %s%s\x01 загружена! (late)", TAG, COLOR, TITLE);
 		id = MG_GameReg(IDENT, TITLE, COLOR);	
 	}
 	LoadKv();
@@ -87,7 +87,7 @@ public void UnloadKv() {
 }
 
 public void OnPluginEnd(){
-	//PrintToChatAll("%s Мини-игра %s%s\x01 выключается.", TAG, COLOR, TITLE);
+	PrintToChatAll("%s Мини-игра %s%s\x01 выключается.", TAG, COLOR, TITLE);
 	if (Started)MG_Stop(_);
 	if(id!=-1) MG_GameUnreg(id);
 	UnloadKv();
@@ -152,7 +152,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 				MG_Stop();
 				return; 
 			}
-		} while (IsFakeClient(g_iTarget2));
+		} while (g_iTarget1 != g_iTarget2 && IsFakeClient(g_iTarget2));
 		
 		for (int i = 0; i <= MaxClients; i++) {
 	 		if(AC_IsClientValid(i) && IsPlayerAlive(i)) {
@@ -200,7 +200,10 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 				} else {
 					char buff[32], buff2[6];
 					CS_GetClientClanTag(i, buff, sizeof(buff));
-					Format(buff2, sizeof(buff2), "%d", GetClientUserId(i));
+					Format(buff2, sizeof(buff2), "%d-1", GetClientUserId(i));
+					smTags.SetString(buff2, buff, true);
+					GetClientName(i, buff, 32);
+					Format(buff2, sizeof(buff2), "%d-2", GetClientUserId(i));
 					smTags.SetString(buff2, buff, true);
 					CS_SetClientClanTag(i, "ПАСТУХ");
 					AC_SetSpeed(i, 1.15);
@@ -296,14 +299,14 @@ public Action Cmd_Herdtest(int client, int args){
 public void MG_OnCoreStart(){
 	if(MG_IsCoreReady(id) && id==-1){
 		id = MG_GameReg(IDENT, TITLE, COLOR);
-		//PrintToChatAll("%s Мини-игра %s%s\x01 загружена! (ontime)", TAG, COLOR, TITLE);
+		PrintToChatAll("%s Мини-игра %s%s\x01 загружена! (ontime)", TAG, COLOR, TITLE);
 	}
 }
 
 public void MG_OnCoreStop(){
 	MG_Stop();
 	id = -1;
-	//PrintToChatAll("%s Мини-игра %s%s\x01 из-за отключения ядра.", TAG, COLOR, TITLE);
+	PrintToChatAll("%s Мини-игра %s%s\x01 из-за отключения ядра.", TAG, COLOR, TITLE);
 }
 
 public void MG_OnGameStart(int identity){
@@ -321,33 +324,45 @@ public void MG_OnGameStop(int identity){
 }
 
 stock void MG_Stop(int type = 0){
+	Started = false;
+	AskStart = false;
+	char buff2[6], nick[32], buff[256];
 	if(type == 1) {
 		float time = GetGameTime() - StartTime;
 		float scores1, scores2 = 0.0;
-		char nick[32], buff[192];
 		scores1 = TargetCount1 * 100 / time;
 		scores2 = TargetCount2 * 100 / time;
 		for (int i = 0; i < sizeof(Rating); i++) {
 			if(scores1 >= Rating[i]) {
 				GetClientName(g_iTarget1, nick, sizeof(nick));
-				for (int i2 = i; i2 < sizeof(Rating)-1; i2++){
-						Rating[i + 1] = Rating[i];
-						strcopy(RatingNames[i + 1], sizeof(RatingNames[]), RatingNames[i]);
+				for (int i2 = sizeof(Rating)-1; i2 > 0; i2--){
+					Rating[i] = Rating[i-1];
+					strcopy(RatingNames[i], sizeof(RatingNames[]), RatingNames[i-1]);
 				}
 				Rating[i] = scores1;
-				strcopy(RatingNames[i], sizeof(RatingNames[][]), nick);
+				Format(buff2, sizeof(buff2), "%d-2", GetClientUserId(g_iTarget1));
+				if(smTags.GetString(buff2, buff, sizeof(buff))) {
+					strcopy(RatingNames[i], sizeof(RatingNames[]), buff);
+				} else {
+					strcopy(RatingNames[i], sizeof(RatingNames[]), nick);
+				}
 				break;
 			}
 		}
 		for (int i = 0; i < sizeof(Rating); i++) {
 			if(scores2 >= Rating[i]) {
 				GetClientName(g_iTarget2, nick, sizeof(nick));
-				for (int i2 = i; i2 < sizeof(Rating)-1; i2++){
-					Rating[i + 1] = Rating[i];
-					strcopy(RatingNames[i + 1], sizeof(RatingNames[]), RatingNames[i]);
+				for (int i2 = sizeof(Rating)-1; i2 > 0; i2--){
+					Rating[i] = Rating[i-1];
+					strcopy(RatingNames[i], sizeof(RatingNames[]), RatingNames[i-1]);
 				}
 				Rating[i] = scores2;
-				strcopy(RatingNames[i], sizeof(RatingNames[]), nick);
+				Format(buff2, sizeof(buff2), "%d-2", GetClientUserId(g_iTarget2));
+				if(smTags.GetString(buff2, buff, sizeof(buff))) {
+					strcopy(RatingNames[i], sizeof(RatingNames[]), buff);
+				} else {
+					strcopy(RatingNames[i], sizeof(RatingNames[]), nick);
+				}
 				break;
 			}
 		}
@@ -356,49 +371,49 @@ stock void MG_Stop(int type = 0){
 		RatingMenu.ExitButton = false;
 		RatingMenu.ExitBackButton = false;
 		
-		Format(buff, sizeof(buff), "%N:\n  %d курочку(ки)", g_iTarget1, TargetCount1);
+		Format(buff, sizeof(buff), "%15N: %d кур(ы)", g_iTarget1, TargetCount1);
 		RatingMenu.AddItem("", buff);
-		Format(buff, sizeof(buff), "%N:\n  %d курочку(ки)", g_iTarget2, TargetCount2);
+		Format(buff, sizeof(buff), "%15N: %d кур(ы)", g_iTarget2, TargetCount2);
 		RatingMenu.AddItem("", buff);
-		for (int i = 0; i < 5; i++) {
-			Format(buff, sizeof(buff), "%d. %14s: %.2f кур/мин", i+1, RatingNames[i], Rating[i]);
-			RatingMenu.AddItem("", buff, ITEMDRAW_DISABLED);
+		buff[0] = '\0';
+		for (int i = 0; i < sizeof(Rating); i++) {
+			Format(buff, sizeof(buff), "%s\n%d. %15s: %.3f кур/мин", buff, i+1, RatingNames[i], Rating[i]);
 		}
+		RatingMenu.AddItem("", buff, ITEMDRAW_DISABLED);
 		
 		for (int i = 0; i < MaxClients; i++) {
 			if(AC_IsClientReal(i))
 				RatingMenu.Display(i, 10);
 		}	
 	}
-	char buff[32], buff2[6];
 	if(AC_IsClientValid(g_iTarget1)) {
-		Format(buff2, sizeof(buff2), "%d", GetClientUserId(g_iTarget1));
+		SetEntProp(g_iTarget1, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
+		Format(buff2, sizeof(buff2), "%d-1", GetClientUserId(g_iTarget1));
 		if(smTags.GetString(buff2, buff, sizeof(buff))) {
 			CS_SetClientClanTag(g_iTarget1, buff);
 		}
 	}
 	if(AC_IsClientValid(g_iTarget2)) {
-		Format(buff2, sizeof(buff2), "%d", GetClientUserId(g_iTarget2));
+		SetEntProp(g_iTarget2, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
+		Format(buff2, sizeof(buff2), "%d-1", GetClientUserId(g_iTarget2));
 		if(smTags.GetString(buff2, buff, sizeof(buff))) {
 			CS_SetClientClanTag(g_iTarget2, buff);
 		}
 	}
 	TargetCount1 = TargetCount2 = 0;
-	SetEntProp(g_iTarget1, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
-	SetEntProp(g_iTarget2, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
+	g_iTarget1 = g_iTarget2 = -1;
 	kokokoTimer = null;
-	SetConVarBool(FindConVar("mp_teammates_are_enemies"), false);
-	Started = false;
-	AskStart = false;
+	SetConVarBool(FindConVar("mp_teammates_are_enemies"), false, false, false);
 	for (int i = 0; i <= MaxClients; i++) {
 		if(AC_IsClientValid(i)) {
 			if(g_bPumpkin[i]) {
 				SetEntityGravity(i, 1.0);
 				g_bPumpkin[i] = false;
 			}
-			ShowMOTDPanel(i, "Chicken", "http://aircr.ru/mg-chicken1.php", MOTDPANEL_TYPE_URL);
+			ShowMOTDPanel(i, "Chicken", "0", MOTDPANEL_TYPE_URL);
 			ClientCommand(i, "firstperson");
 			SDKUnhook(i, SDKHook_OnTakeDamage, OnTakeDamage);
+			SDKUnhook(i, SDKHook_WeaponEquip, OnWeaponCanUse);
 		}
 	}
 	MG_GameConfirmStop(id);
