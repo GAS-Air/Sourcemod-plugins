@@ -162,31 +162,25 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 				GivePlayerItem(i, "weapon_knife");
 				if(i != g_iTarget1 && i != g_iTarget2) {
 					int type = GetRandomInt(1, 5);
-					switch(type){
-						case 1:{
-							 //chickenbirth
+					switch(type) {
+						case 1: { //chickenbirth
 							AC_SetSpeed(i, 1.15);
 							PrintToChat(i, "%s У вас повышенная скорость!", TAG);
 						}
-						case 2:{
-							 //ghost
+						case 2: { //ghost
 							SetEntityRenderMode(i, RENDER_TRANSCOLOR);
   							SetEntityRenderColor(i, 255,255,255,80);
   							PrintToChat(i, "%s Вы прозрачный УУУУУУ!", TAG);
-							
 						}
-						case 3:{
-							//christm
+						case 3: { //christm
 							SetEntProp(i, Prop_Data, "m_iHealth", 1555);
 							PrintToChat(i, "%s У вас повышенное здоровье!", TAG);
 						}
-						case 4:{
-							//krolick
+						case 4: { //krolick
 							SetEntityGravity(i, 0.9);
 							PrintToChat(i, "%s У вас пониженная гравитация!", TAG);
 						}
-						case 5:{
-							//pumphin
+						case 5: { //pumphin
 							g_bPumpkin[i] = true;
 							PrintToChat(i, "%s Вы живете по понятиям, пастухи нет, атакуйте его!", TAG);
 						}
@@ -196,7 +190,6 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 			 		SetEntProp(i, Prop_Send, "m_nBody", type);
 			 		ClientCommand(i, "thirdperson");
 					g_bThirdperson[i] = true;
-					//PrintToChatAll("%N пастух!", g_iTarget);
 				} else {
 					char buff[32], buff2[6];
 					CS_GetClientClanTag(i, buff, sizeof(buff));
@@ -207,7 +200,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 					smTags.SetString(buff2, buff, true);
 					CS_SetClientClanTag(i, "ПАСТУХ");
 					AC_SetSpeed(i, 1.15);
-					AC_CreateBeacon(i, 25, {240,230,0,255});
+					AC_CreateBeacon(i, 10, {240,230,0,255});
 					AC_SetNeon(i, "240 230 0 255");
 					CreateTimer(2.0, Timer_PastuhInform, i);
 					GivePlayerItem(i, "weapon_p90");
@@ -221,15 +214,11 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 }
 
 public Action Timer_KokokoTimer(Handle timer, any data) {
-	//PrintToChatAll("kokokoTimer: %d", kokokoTimer);
 	if (kokokoTimer == null)return Plugin_Stop;
 	int client = -1;
-	static int last = 0;
-	static int count = 0;
-	//PrintToChatAll("client: %d count: %d", client, count);
+	static int last = 0, count = 0;
 	do {
 		client = AC_GetRandomPlayer();
-		//PrintToChatAll("AC_GetRandomPlayer(): %d", client);
 		if (client == -1) {
 			kokokoTimer = null;
 			return Plugin_Stop;
@@ -239,10 +228,10 @@ public Action Timer_KokokoTimer(Handle timer, any data) {
 		FakeClientCommand(client, "say \"ко ко ко\"");
 	}
 	
-	if(count++%4==0 && AC_IsClientReal(g_iTarget1)) {
+	if(count++%3==0 && AC_IsClientReal(g_iTarget1)) {
 		FakeClientCommand(g_iTarget1, "say \"цыпа цыпа цыпа\"");
 	}
-	if(count++%3==0 && AC_IsClientReal(g_iTarget2)) {
+	if(count++%7==0 && AC_IsClientReal(g_iTarget2)) {
 		FakeClientCommand(g_iTarget2, "say \"цыпа цыпа цыпа\"");
 	}
 	return Plugin_Handled;
@@ -251,9 +240,11 @@ public Action Timer_KokokoTimer(Handle timer, any data) {
 public Action Timer_PetyxInform(Handle timer, int client) {
 	static char chan[24], buff[128];
 	Format(chan, sizeof(chan), "petyx%d-0", client);
-	Format(buff, sizeof(buff), "%N , %N пастухи, они быстрее вас и могут свернуть шею! ко ко ко", g_iTarget1, g_iTarget2);
-	PrintHudText(chan, client, client, buff, 6, HUDIcon_Arm, HUDColor_Gray, _, 0.01);
+	Format(buff, sizeof(buff), "%N и %N пастухи", g_iTarget1, g_iTarget2);
+	PrintHudText(chan, client, client, buff, 6, HUDIcon_Arm, HUDColor_Yellow, _, 0.01);
 	Format(chan, sizeof(chan), "petyx%d-1", client);
+	PrintHudText(chan, client, client, "Пастухи, они быстрее вас и могут свернуть шею! ко ко ко", 6, HUDIcon_Arm, HUDColor_Gray, _, 0.01);
+	Format(chan, sizeof(chan), "petyx%d-2", client);
 	PrintHudText(chan, client, client, "Вы петушок, убегайте от пастуха! ко ко ко", 6, HUDIcon_Arm, "240,230,0", _, 0.01);
 	return Plugin_Handled;
 }
@@ -285,14 +276,7 @@ public Action Event_PlayerSpawn(Handle event, const char[] name, bool dontBroadc
 // MiniGames
 //***********
 public Action Cmd_Herdtest(int client, int args){
-	/*
-	SetEntityModel(client, CHICKENMODEL);
-	SetEntProp(client, Prop_Send, "m_nBody", 3);
-	ClientCommand(client, "thirdperson");
-	g_bThirdperson[client] = true;
-	*/
-	ShowMOTDPanel(client, "Chicken", "http://aircr.ru/mg-chicken.php", MOTDPANEL_TYPE_URL);
-	ShowMOTDPanel(client, "Chicken", "http://aircr.ru/mg-chicken1.php", MOTDPANEL_TYPE_URL);
+	/* Для тестов */
 	return Plugin_Handled;
 }
 
@@ -309,21 +293,24 @@ public void MG_OnCoreStop(){
 	PrintToChatAll("%s Мини-игра %s%s\x01 из-за отключения ядра.", TAG, COLOR, TITLE);
 }
 
-public void MG_OnGameStart(int identity){
+public void MG_OnGameStart(int identity) {
 	if(id == identity){
 		AskStart = true;
 		MG_GameConfirmStart(id);
 	}
 }
 
-public void MG_OnGameStop(int identity){
-	if(id == identity){
+public void MG_OnGameStop(int identity) {
+	if(id == identity)
 		MG_Stop();
-		PrintToChatAll("%s Мини-игра %s%s\x01 остановлена!", TAG, COLOR, TITLE);
-	}
 }
 
-stock void MG_Stop(int type = 0){
+/*
+ * type - причина остановки мини-игры.
+ * 		0 - принудительно
+ *		1 - игра успешно завершена
+ */
+stock void MG_Stop(int type = 0) {
 	Started = false;
 	AskStart = false;
 	char buff2[6], nick[32], buff[256];
@@ -336,8 +323,8 @@ stock void MG_Stop(int type = 0){
 			if(scores1 >= Rating[i]) {
 				GetClientName(g_iTarget1, nick, sizeof(nick));
 				for (int i2 = sizeof(Rating)-1; i2 > 0; i2--){
-					Rating[i] = Rating[i-1];
-					strcopy(RatingNames[i], sizeof(RatingNames[]), RatingNames[i-1]);
+					Rating[i2] = Rating[i2-1];
+					strcopy(RatingNames[i2], sizeof(RatingNames[]), RatingNames[i2-1]);
 				}
 				Rating[i] = scores1;
 				Format(buff2, sizeof(buff2), "%d-2", GetClientUserId(g_iTarget1));
@@ -353,8 +340,8 @@ stock void MG_Stop(int type = 0){
 			if(scores2 >= Rating[i]) {
 				GetClientName(g_iTarget2, nick, sizeof(nick));
 				for (int i2 = sizeof(Rating)-1; i2 > 0; i2--){
-					Rating[i] = Rating[i-1];
-					strcopy(RatingNames[i], sizeof(RatingNames[]), RatingNames[i-1]);
+					Rating[i2] = Rating[i2-1];
+					strcopy(RatingNames[i2], sizeof(RatingNames[]), RatingNames[i2-1]);
 				}
 				Rating[i] = scores2;
 				Format(buff2, sizeof(buff2), "%d-2", GetClientUserId(g_iTarget2));
@@ -366,7 +353,7 @@ stock void MG_Stop(int type = 0){
 				break;
 			}
 		}
-		RatingMenu = new Menu(Handler_Fast);
+		RatingMenu = new Menu(MenuHandler_None);
 		RatingMenu.SetTitle("Мини-игра \"Пастух\"");
 		RatingMenu.ExitButton = false;
 		RatingMenu.ExitBackButton = false;
@@ -416,12 +403,11 @@ stock void MG_Stop(int type = 0){
 			SDKUnhook(i, SDKHook_WeaponEquip, OnWeaponCanUse);
 		}
 	}
-	MG_GameConfirmStop(id);
 	PrintToChatAll("%s Мини-игра %s%s\x01 остановлена!", TAG, COLOR, TITLE);
+	MG_GameConfirmStop(id);
 }
 
-public int Handler_Fast(Menu menu, MenuAction action, int param1, int param2)
-{
+public int MenuHandler_None(Menu menu, MenuAction action, int param1, int param2) {
 	return;
 }
 
@@ -430,7 +416,7 @@ public Action OnWeaponCanUse(int client, int weapon) {
 		char sWeapon[32];
 		sWeapon[0] = '\0';
 		GetEntityClassname(weapon, sWeapon, sizeof(sWeapon));
-		if(StrEqual(sWeapon, "weapon_taser", false) || StrEqual(sWeapon, "weapon_knife", false)) {
+		if(StrEqual(sWeapon, "weapon_knife", false) || StrEqual(sWeapon, "weapon_taser", false)) {
 			return Plugin_Continue;
 		}
 		return Plugin_Handled;
@@ -439,23 +425,20 @@ public Action OnWeaponCanUse(int client, int weapon) {
 }
 
 public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom) {
-	if(Started && AC_IsClientValid(victim)) {
-		if(AC_IsClientValid(attacker)) {
-			if(attacker != g_iTarget1 && attacker != g_iTarget2) {
-				if(g_bPumpkin[attacker] && (victim == g_iTarget1 || victim == g_iTarget2)) {
-					PrintToChatAll("Цыпа %N клюнул пастуха %N", attacker, victim);
-					damage = 5.0;
-					return Plugin_Changed;
-				}
-				PrintToChat(attacker, "%s Вы не можете атаковать цель во время %sПастуха.", TAG, COLOR);
-				return Plugin_Stop;
-			} else {
-				if (victim == g_iTarget1 || victim == g_iTarget2)return Plugin_Stop;
-				PrintToChatAll("Пастух %N поймал петушка %N", attacker, victim);
-				damage = 777.0;
+	if(Started && AC_IsClientValid(victim) && AC_IsClientValid(attacker)) {
+		if(attacker != g_iTarget1 && attacker != g_iTarget2) {
+			if(g_bPumpkin[attacker] && (victim == g_iTarget1 || victim == g_iTarget2)) {
+				PrintToChatAll("%s \x01Цыпа %s%N \x01клюнул пастуха %s%N.", TAG, COLOR, attacker, COLOR, victim);
+				damage = 5.0;
 				return Plugin_Changed;
 			}
-			
+			PrintToChat(attacker, "%s Вы не можете атаковать цель во время %sПастуха.", TAG, COLOR);
+			return Plugin_Stop;
+		} else {
+			if (victim == g_iTarget1 || victim == g_iTarget2)	return Plugin_Stop;
+			PrintToChatAll("%s \x01Пастух %s%N \x01поймал петушка %s%N.", TAG, COLOR, attacker, COLOR, victim);
+			damage = 777.0;
+			return Plugin_Changed;
 		}
 	}
 	return Plugin_Handled;
