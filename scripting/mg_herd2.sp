@@ -15,7 +15,7 @@
 #define SHOWHUD_RADAR 1 >> 12
 
 bool Started = false, AskStart = false;
-int informer[MAXPLAYERS + 1] = {0,...}, g_iTarget = -1, id = -1;
+int informer[MAXPLAYERS + 1] = {0,...}, g_iTarget1 = -1, g_iTarget2 = -1, id = -1;
 bool g_bThirdperson[MAXPLAYERS + 1] = {false, ...}, g_bPumpkin[MAXPLAYERS + 1] = {false, ...};
 Handle kokokoTimer;
 
@@ -59,7 +59,7 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		
 	}
 	if(Started) {
-		if(client == g_iTarget) {
+		if(client == g_iTarget1 || client == g_iTarget2) {
 			AC_RemoveNeon(client);
 		}
 	}
@@ -74,19 +74,30 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 	if(Started) {
 		SetConVarBool(FindConVar("mp_teammates_are_enemies"), true);
 		do {
-			g_iTarget = AC_GetRandomPlayer();
-			if(g_iTarget == -1) {
+			g_iTarget1 = AC_GetRandomPlayer();
+			
+			if(g_iTarget1 == -1) {
 				MG_Stop();
 				return; 
 			}
-		} while (IsFakeClient(g_iTarget));
+		} while (IsFakeClient(g_iTarget1));
+		
+		do {
+			g_iTarget2 = AC_GetRandomPlayer();
+			
+			if(g_iTarget2 == -1) {
+				MG_Stop();
+				return; 
+			}
+		} while (IsFakeClient(g_iTarget2));
+		
 		for (int i = 0; i <= MaxClients; i++) {
 	 		if(AC_IsClientValid(i) && IsPlayerAlive(i)) {
 	 			SDKHook(i, SDKHook_OnTakeDamage, OnTakeDamage);
 				SDKHook(i, SDKHook_WeaponEquip, OnWeaponCanUse);
 	 			CS_RemoveAllWeapons(i);
 				GivePlayerItem(i, "weapon_knife");
-				if(i != g_iTarget) {
+				if(i != g_iTarget1 || i != g_iTarget2) {
 					int type = GetRandomInt(1, 5);
 					switch(type){
 						case 1:{
@@ -97,7 +108,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 						case 2:{
 							 //ghost
 							SetEntityRenderMode(i, RENDER_TRANSCOLOR);
-  							SetEntityRenderColor(i, 255,255,255,100);
+  							SetEntityRenderColor(i, 255,255,255,80);
   							PrintToChat(i, "%s Вы прозрачный УУУУУУ!", TAG);
 							
 						}
@@ -108,13 +119,13 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 						}
 						case 4:{
 							//krolick
-							SetEntityGravity(i, 0.8);
+							SetEntityGravity(i, 0.9);
 							PrintToChat(i, "%s У вас пониженная гравитация!", TAG);
 						}
 						case 5:{
 							//pumphin
 							g_bPumpkin[i] = true;
-							PrintToChat(i, "%s Вы живете по понятиям, пастух нет, атакуйте его!", TAG);
+							PrintToChat(i, "%s Вы живете по понятиям, пастухи нет, атакуйте его!", TAG);
 						}
 					}
 					CreateTimer(2.0, Timer_PetyxInform, i);
@@ -124,12 +135,12 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 					g_bThirdperson[i] = true;
 					//PrintToChatAll("%N пастух!", g_iTarget);
 				} else {
-					AC_SetSpeed(i, 1.3);
+					AC_SetSpeed(i, 1.15);
 					AC_CreateBeacon(i, 25, {240,230,0,255});
 					AC_SetNeon(i, "240 230 0 255");
 					CreateTimer(2.0, Timer_PastuhInform, i);
 					GivePlayerItem(i, "weapon_p90");
-					AC_FreezeClient(i, 8);
+					AC_FreezeClient(i, 15);
 					SetEntProp(i, Prop_Send, "m_iHideHUD", HIDEHUD_RADAR);
 				}
 	 		}
@@ -152,14 +163,16 @@ public Action Timer_KokokoTimer(Handle timer, any data) {
 			kokokoTimer = null;
 			return Plugin_Stop;
 		}	
-	} while (client == g_iTarget || client == last);
-	
+	} while (client == g_iTarget1 || client == g_iTarget2 || client == last);
 	if(AC_IsClientReal(client)) {
 		FakeClientCommand(client, "say \"ко ко ко\"");
 	}
 	
-	if(count++%3==0 && AC_IsClientReal(g_iTarget)) {
-		FakeClientCommand(g_iTarget, "say \"цыпа цыпа цыпа\"");
+	if(count++%4==0 && AC_IsClientReal(g_iTarget1)) {
+		FakeClientCommand(g_iTarget1, "say \"цыпа цыпа цыпа\"");
+	}
+	if(count++%3==0 && AC_IsClientReal(g_iTarget2)) {
+		FakeClientCommand(g_iTarget2, "say \"цыпа цыпа цыпа\"");
 	}
 	return Plugin_Handled;
 }
@@ -167,7 +180,7 @@ public Action Timer_KokokoTimer(Handle timer, any data) {
 public Action Timer_PetyxInform(Handle timer, int client) {
 	static char chan[24], buff[128];
 	Format(chan, sizeof(chan), "petyx%d-0", client);
-	Format(buff, sizeof(buff), "%N пастух, он быстрее вас и может свернуть шею! ко ко ко", g_iTarget);
+	Format(buff, sizeof(buff), "%N , %N пастухи, они быстрее вас и могут свернуть шею! ко ко ко", g_iTarget1, g_iTarget2);
 	PrintHudText(chan, client, client, buff, 6, HUDIcon_Arm, HUDColor_Gray, _, 0.01);
 	Format(chan, sizeof(chan), "petyx%d-1", client);
 	PrintHudText(chan, client, client, "Вы петушок, убегайте от пастуха! ко ко ко", 6, HUDIcon_Arm, "240,230,0", _, 0.01);
@@ -235,7 +248,8 @@ public void MG_OnGameStop(int identity){
 }
 
 stock void MG_Stop(int reward = 0){
-	SetEntProp(g_iTarget, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
+	SetEntProp(g_iTarget1, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
+	SetEntProp(g_iTarget2, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
 	kokokoTimer = null;
 	SetConVarBool(FindConVar("mp_teammates_are_enemies"), false);
 	Started = false;
@@ -270,10 +284,10 @@ public Action OnWeaponCanUse(int client, int weapon) {
 public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom) {
 	if(Started && AC_IsClientValid(victim)) {
 		if(AC_IsClientValid(attacker)) {
-			if(attacker != g_iTarget) {
-				if(g_bPumpkin[attacker] && victim == g_iTarget) {
+			if(attacker != g_iTarget1 && attacker != g_iTarget2) {
+				if(g_bPumpkin[attacker] && (victim == g_iTarget1 || victim == g_iTarget2)) {
 					PrintToChatAll("Цыпа %N клюнул пастуха %N", attacker, victim);
-					damage = 3.0;
+					damage = 5.0;
 					return Plugin_Changed;
 				}
 				PrintToChat(attacker, "%s Вы не можете атаковать цель во время %sПастуха.", TAG, COLOR);
