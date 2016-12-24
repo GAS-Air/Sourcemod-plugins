@@ -16,9 +16,21 @@
 #define SHOWHUD_RADAR 1 >> 12
 
 bool Started = false, AskStart = false;
-int informer[MAXPLAYERS + 1] = {0,...}, g_iTarget1 = -1, g_iTarget2 = -1, id = -1;
+int informer[MAXPLAYERS + 1] = {0,...}, id = -1;
 bool g_bThirdperson[MAXPLAYERS + 1] = {false, ...}, g_bPumpkin[MAXPLAYERS + 1] = {false, ...};
 Handle kokokoTimer;
+KeyValues kvRating;
+char confPath[256];
+float Rating[5];
+char RatingNames[5][32];
+float StartTime = 0.0;
+Menu RatingMenu;
+
+// Targets
+int g_iTarget1 = -1, g_iTarget2 = -1, 
+	TargetCount1 = 0, TargetCount2 = 0;
+StringMap smTags;
+
 
 public Plugin myinfo = {
 	name = "MiniGames: Chickenherd", author = "Aircraft", 
@@ -27,6 +39,7 @@ public Plugin myinfo = {
 
 public void OnPluginStart() {
 	kokokoTimer = null;
+	smTags = new StringMap();
 	SetConVarBool(FindConVar("sv_allow_thirdperson"), true);
 	RegConsoleCmd("sm_herdtest", Cmd_Herdtest);
 	HookEvent("player_death", Event_PlayerDeath);
@@ -34,15 +47,50 @@ public void OnPluginStart() {
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("round_end", Event_RoundEnd);
 	if(MG_IsCoreReady(id) && id==-1) {
-		PrintToChatAll("%s Мини-игра %s%s\x01 загружена! (late)", TAG, COLOR, TITLE);
+		//PrintToChatAll("%s Мини-игра %s%s\x01 загружена! (late)", TAG, COLOR, TITLE);
 		id = MG_GameReg(IDENT, TITLE, COLOR);	
+	}
+	LoadKv();
+}
+
+public void LoadKv() {
+	BuildPath(Path_SM, confPath, sizeof(confPath), "/configs/mg_herd2.txt");
+	kvRating = new KeyValues("mg_herd2");
+	kvRating.ImportFromFile(confPath);
+	char buff[6];
+	for (int i = 0; i < sizeof(Rating); i++) {
+		Format(buff, sizeof(buff), "%d", i);
+		Rating[i] = kvRating.GetFloat(buff, -0.0);
+		Format(buff, sizeof(buff), "0%d", i);
+		kvRating.GetString(buff, RatingNames[i], sizeof(RatingNames[]), "null");
+		if(StrEqual(RatingNames[i], "")) {
+			RatingNames[i] = "null";
+		}
 	}
 }
 
+public void UnloadKv() {
+	kvRating.Rewind();
+	char buff[6];
+	for (int i = 0; i < sizeof(Rating); i++) {
+		Format(buff, sizeof(buff), "%d", i);
+		kvRating.SetFloat(buff, Rating[i]);
+		Format(buff, sizeof(buff), "0%d", i);
+		PrintToServer("%f %s", Rating[i], RatingNames[i]);
+		if(StrEqual(RatingNames[i], "")) {
+			RatingNames[i] = "null";
+		}
+		kvRating.SetString(buff, RatingNames[i]);
+	}
+	kvRating.ExportToFile(confPath);
+	kvRating.Close();
+}
+
 public void OnPluginEnd(){
-	PrintToChatAll("%s Мини-игра %s%s\x01 выключается.", TAG, COLOR, TITLE);
+	//PrintToChatAll("%s Мини-игра %s%s\x01 выключается.", TAG, COLOR, TITLE);
 	if (Started)MG_Stop(_);
 	if(id!=-1) MG_GameUnreg(id);
+	UnloadKv();
 }
 
 public void OnConfigsExecuted(){
@@ -54,14 +102,29 @@ public void OnConfigsExecuted(){
 //***********
 public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast) {
 	int client = GetClientOfUserId(event.GetInt("userid"));
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
 	if(AC_IsClientValid(client)) SDKUnhook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 	if(IsClientInGame(client) && g_bThirdperson[client]) {
 		ClientCommand(client, "firstperson");
-		
 	}
 	if(Started) {
+		static int count = 0;
+		for (int i = 1; i < MaxClients; i++) {
+			if(AC_IsClientValid(i) && IsPlayerAlive(i)) {
+				count++;
+			}
+		}
+		if(count==2 && (IsClientInGame(g_iTarget1) && IsClientInGame(g_iTarget2) && IsPlayerAlive(g_iTarget1) && IsPlayerAlive(g_iTarget2))) {
+			CS_TerminateRound(8.0, CSRoundEnd_VIPKilled, false);
+		}
+		count = 0;
 		if(client == g_iTarget1 || client == g_iTarget2) {
 			AC_RemoveNeon(client);
+		} else {
+			if(attacker) {
+				if (attacker == g_iTarget1)TargetCount1++;
+				if (attacker == g_iTarget2)TargetCount2++;
+			} 
 		}
 	}
 }
@@ -73,10 +136,10 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 		PrintToChatAll("%s Мини-игра \"%s%s\x01\" начинается!", TAG, COLOR, TITLE);
 	}
 	if(Started) {
+		StartTime = GetGameTime();
 		SetConVarBool(FindConVar("mp_teammates_are_enemies"), true);
 		do {
 			g_iTarget1 = AC_GetRandomPlayer();
-			
 			if(g_iTarget1 == -1) {
 				MG_Stop();
 				return; 
@@ -85,7 +148,6 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 		
 		do {
 			g_iTarget2 = AC_GetRandomPlayer();
-			
 			if(g_iTarget2 == -1) {
 				MG_Stop();
 				return; 
@@ -136,6 +198,10 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 					g_bThirdperson[i] = true;
 					//PrintToChatAll("%N пастух!", g_iTarget);
 				} else {
+					char buff[32], buff2[6];
+					CS_GetClientClanTag(i, buff, sizeof(buff));
+					Format(buff2, sizeof(buff2), "%d", GetClientUserId(i));
+					smTags.SetString(buff2, buff, true);
 					CS_SetClientClanTag(i, "ПАСТУХ");
 					AC_SetSpeed(i, 1.15);
 					AC_CreateBeacon(i, 25, {240,230,0,255});
@@ -197,7 +263,7 @@ public Action Timer_PastuhInform(Handle timer, int client) {
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast) {
 	if(Started) {
-		MG_Stop(_);
+		MG_Stop(1);
 	}
 }
 
@@ -230,14 +296,14 @@ public Action Cmd_Herdtest(int client, int args){
 public void MG_OnCoreStart(){
 	if(MG_IsCoreReady(id) && id==-1){
 		id = MG_GameReg(IDENT, TITLE, COLOR);
-		PrintToChatAll("%s Мини-игра %s%s\x01 загружена! (ontime)", TAG, COLOR, TITLE);
+		//PrintToChatAll("%s Мини-игра %s%s\x01 загружена! (ontime)", TAG, COLOR, TITLE);
 	}
 }
 
 public void MG_OnCoreStop(){
 	MG_Stop();
 	id = -1;
-	PrintToChatAll("%s Мини-игра %s%s\x01 из-за отключения ядра.", TAG, COLOR, TITLE);
+	//PrintToChatAll("%s Мини-игра %s%s\x01 из-за отключения ядра.", TAG, COLOR, TITLE);
 }
 
 public void MG_OnGameStart(int identity){
@@ -254,7 +320,70 @@ public void MG_OnGameStop(int identity){
 	}
 }
 
-stock void MG_Stop(int reward = 0){
+stock void MG_Stop(int type = 0){
+	if(type == 1) {
+		float time = GetGameTime() - StartTime;
+		float scores1, scores2 = 0.0;
+		char nick[32], buff[192];
+		scores1 = TargetCount1 * 100 / time;
+		scores2 = TargetCount2 * 100 / time;
+		for (int i = 0; i < sizeof(Rating); i++) {
+			if(scores1 >= Rating[i]) {
+				GetClientName(g_iTarget1, nick, sizeof(nick));
+				for (int i2 = i; i2 < sizeof(Rating)-1; i2++){
+						Rating[i + 1] = Rating[i];
+						strcopy(RatingNames[i + 1], sizeof(RatingNames[]), RatingNames[i]);
+				}
+				Rating[i] = scores1;
+				strcopy(RatingNames[i], sizeof(RatingNames[][]), nick);
+				break;
+			}
+		}
+		for (int i = 0; i < sizeof(Rating); i++) {
+			if(scores2 >= Rating[i]) {
+				GetClientName(g_iTarget2, nick, sizeof(nick));
+				for (int i2 = i; i2 < sizeof(Rating)-1; i2++){
+					Rating[i + 1] = Rating[i];
+					strcopy(RatingNames[i + 1], sizeof(RatingNames[]), RatingNames[i]);
+				}
+				Rating[i] = scores2;
+				strcopy(RatingNames[i], sizeof(RatingNames[]), nick);
+				break;
+			}
+		}
+		RatingMenu = new Menu(Handler_Fast);
+		RatingMenu.SetTitle("Мини-игра \"Пастух\"");
+		RatingMenu.ExitButton = false;
+		RatingMenu.ExitBackButton = false;
+		
+		Format(buff, sizeof(buff), "%N:\n  %d курочку(ки)", g_iTarget1, TargetCount1);
+		RatingMenu.AddItem("", buff);
+		Format(buff, sizeof(buff), "%N:\n  %d курочку(ки)", g_iTarget2, TargetCount2);
+		RatingMenu.AddItem("", buff);
+		for (int i = 0; i < 5; i++) {
+			Format(buff, sizeof(buff), "%d. %14s: %.2f кур/мин", i+1, RatingNames[i], Rating[i]);
+			RatingMenu.AddItem("", buff, ITEMDRAW_DISABLED);
+		}
+		
+		for (int i = 0; i < MaxClients; i++) {
+			if(AC_IsClientReal(i))
+				RatingMenu.Display(i, 10);
+		}	
+	}
+	char buff[32], buff2[6];
+	if(AC_IsClientValid(g_iTarget1)) {
+		Format(buff2, sizeof(buff2), "%d", GetClientUserId(g_iTarget1));
+		if(smTags.GetString(buff2, buff, sizeof(buff))) {
+			CS_SetClientClanTag(g_iTarget1, buff);
+		}
+	}
+	if(AC_IsClientValid(g_iTarget2)) {
+		Format(buff2, sizeof(buff2), "%d", GetClientUserId(g_iTarget2));
+		if(smTags.GetString(buff2, buff, sizeof(buff))) {
+			CS_SetClientClanTag(g_iTarget2, buff);
+		}
+	}
+	TargetCount1 = TargetCount2 = 0;
 	SetEntProp(g_iTarget1, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
 	SetEntProp(g_iTarget2, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
 	kokokoTimer = null;
@@ -274,6 +403,11 @@ stock void MG_Stop(int reward = 0){
 	}
 	MG_GameConfirmStop(id);
 	PrintToChatAll("%s Мини-игра %s%s\x01 остановлена!", TAG, COLOR, TITLE);
+}
+
+public int Handler_Fast(Menu menu, MenuAction action, int param1, int param2)
+{
+	return;
 }
 
 public Action OnWeaponCanUse(int client, int weapon) {
