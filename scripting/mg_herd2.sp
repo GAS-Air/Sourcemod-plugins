@@ -5,6 +5,7 @@
 #include <mg_core>
 #include <sdkhooks>
 #include <aclib>
+#include <cstrike>
 
 #define IDENT "herd"
 #define TITLE "Пастух"
@@ -97,7 +98,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 				SDKHook(i, SDKHook_WeaponEquip, OnWeaponCanUse);
 	 			CS_RemoveAllWeapons(i);
 				GivePlayerItem(i, "weapon_knife");
-				if(i != g_iTarget1 || i != g_iTarget2) {
+				if(i != g_iTarget1 && i != g_iTarget2) {
 					int type = GetRandomInt(1, 5);
 					switch(type){
 						case 1:{
@@ -135,12 +136,13 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 					g_bThirdperson[i] = true;
 					//PrintToChatAll("%N пастух!", g_iTarget);
 				} else {
+					CS_SetClientClanTag(i, "ПАСТУХ");
 					AC_SetSpeed(i, 1.15);
 					AC_CreateBeacon(i, 25, {240,230,0,255});
 					AC_SetNeon(i, "240 230 0 255");
 					CreateTimer(2.0, Timer_PastuhInform, i);
 					GivePlayerItem(i, "weapon_p90");
-					AC_FreezeClient(i, 15);
+					AC_FreezeClient(i, 13);
 					SetEntProp(i, Prop_Send, "m_iHideHUD", HIDEHUD_RADAR);
 				}
 	 		}
@@ -202,6 +204,7 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast) {
 public Action Event_PlayerSpawn(Handle event, const char[] name, bool dontBroadcast){
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(Started){
+		ShowMOTDPanel(client, "Chicken", "http://aircr.ru/mg-chicken.php", MOTDPANEL_TYPE_URL);
 		SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 		SDKHook(client, SDKHook_WeaponEquip, OnWeaponCanUse);
 		CS_StripButKnife(client);
@@ -213,10 +216,14 @@ public Action Event_PlayerSpawn(Handle event, const char[] name, bool dontBroadc
 // MiniGames
 //***********
 public Action Cmd_Herdtest(int client, int args){
+	/*
 	SetEntityModel(client, CHICKENMODEL);
 	SetEntProp(client, Prop_Send, "m_nBody", 3);
 	ClientCommand(client, "thirdperson");
 	g_bThirdperson[client] = true;
+	*/
+	ShowMOTDPanel(client, "Chicken", "http://aircr.ru/mg-chicken.php", MOTDPANEL_TYPE_URL);
+	ShowMOTDPanel(client, "Chicken", "http://aircr.ru/mg-chicken1.php", MOTDPANEL_TYPE_URL);
 	return Plugin_Handled;
 }
 
@@ -260,12 +267,13 @@ stock void MG_Stop(int reward = 0){
 				SetEntityGravity(i, 1.0);
 				g_bPumpkin[i] = false;
 			}
-			
+			ShowMOTDPanel(i, "Chicken", "http://aircr.ru/mg-chicken1.php", MOTDPANEL_TYPE_URL);
 			ClientCommand(i, "firstperson");
 			SDKUnhook(i, SDKHook_OnTakeDamage, OnTakeDamage);
 		}
 	}
 	MG_GameConfirmStop(id);
+	PrintToChatAll("%s Мини-игра %s%s\x01 остановлена!", TAG, COLOR, TITLE);
 }
 
 public Action OnWeaponCanUse(int client, int weapon) {
@@ -293,6 +301,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 				PrintToChat(attacker, "%s Вы не можете атаковать цель во время %sПастуха.", TAG, COLOR);
 				return Plugin_Stop;
 			} else {
+				if (victim == g_iTarget1 || victim == g_iTarget2)return Plugin_Stop;
 				PrintToChatAll("Пастух %N поймал петушка %N", attacker, victim);
 				damage = 777.0;
 				return Plugin_Changed;
