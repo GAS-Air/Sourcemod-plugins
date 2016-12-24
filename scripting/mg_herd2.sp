@@ -11,6 +11,8 @@
 #define COLOR "\x09"
 #define RANK_REWARD 100
 #define CHICKENMODEL "models/chicken/chicken.mdl"
+#define HIDEHUD_RADAR 1 << 12
+#define SHOWHUD_RADAR 1 >> 12
 
 bool Started = false, AskStart = false;
 int informer[MAXPLAYERS + 1] = {0,...}, g_iTarget = -1, id = -1;
@@ -127,7 +129,8 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 					AC_SetNeon(i, "240 230 0 255");
 					CreateTimer(2.0, Timer_PastuhInform, i);
 					GivePlayerItem(i, "weapon_p90");
-					AC_FreezeClient(i, 5);
+					AC_FreezeClient(i, 8);
+					SetEntProp(i, Prop_Send, "m_iHideHUD", HIDEHUD_RADAR);
 				}
 	 		}
 		}
@@ -172,7 +175,8 @@ public Action Timer_PetyxInform(Handle timer, int client) {
 }
 
 public Action Timer_PastuhInform(Handle timer, int client) {
-	PrintHudText("pastuh", client, client, "Вы пастух, ловите цыпочек, зарабатывайте очки!", 6, HUDIcon_Arm, "240,230,0", _, 0.01);
+	PrintHudText("pastuh2", client, client, "У вас отключен радар, используйте пастушье чутьё!", 6, HUDIcon_None, HUDColor_White, _, 0.01);
+	PrintHudText("pastuh1", client, client, "Вы пастух, ловите цыпочек, зарабатывайте очки!", 6, HUDIcon_Arm, "240,230,0", _, 0.01);
 	return Plugin_Handled;
 }
 
@@ -231,13 +235,18 @@ public void MG_OnGameStop(int identity){
 }
 
 stock void MG_Stop(int reward = 0){
+	SetEntProp(g_iTarget, Prop_Send, "m_iHideHUD", SHOWHUD_RADAR);
 	kokokoTimer = null;
 	SetConVarBool(FindConVar("mp_teammates_are_enemies"), false);
 	Started = false;
 	AskStart = false;
 	for (int i = 0; i <= MaxClients; i++) {
 		if(AC_IsClientValid(i)) {
-			g_bPumpkin[i] = false;
+			if(g_bPumpkin[i]) {
+				SetEntityGravity(i, 1.0);
+				g_bPumpkin[i] = false;
+			}
+			
 			ClientCommand(i, "firstperson");
 			SDKUnhook(i, SDKHook_OnTakeDamage, OnTakeDamage);
 		}
