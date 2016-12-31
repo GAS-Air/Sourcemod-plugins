@@ -100,6 +100,10 @@ public void OnConfigsExecuted(){
 //***********
 // Events
 //***********
+           
+
+
+
 public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast) {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	int attacker = GetClientOfUserId(event.GetInt("attacker"));
@@ -257,7 +261,10 @@ public Action Timer_PastuhInform(Handle timer, int client) {
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast) {
 	if(Started) {
+		int t, ct = 0;
+		
 		MG_Stop(1);
+		CreateTimer(5.0, Timer_RewardInform, (ct>t));
 	}
 }
 
@@ -484,4 +491,25 @@ stock void CS_RemoveAllWeapons(int client) {
 			}
 		}
 	}
+}
+
+
+public Action Timer_RewardInform(Handle timer, bool ct) {
+	char buff[128] = "Команда";
+	Format(buff, 128, "%s %s получила %d очков ранга за победу!", buff, ct ? "Курочки":"Пастухи", RANK_REWARD);
+	PrintToChatAll("%s  %s%s\x01 получили %s%d\x01 очков ранга за победу!", TAG, COLOR, ct ? "Курочки":"Пастухи", COLOR, RANK_REWARD);
+	for(int i = 1; i <= 32; i++) {
+		if (IsClientValid(i)) {
+			if(IsPlayerAlive(i))
+				PrintHudText(HUDChannel_Plugin3, i, 0, buff, 7, HUDIcon_Arm, HUDColor_Yellow, 100.0, 0.0, HUDEffect_Static);
+			else 
+				PrintHintText(i, "<font size='26' color='#f2b700'>Команда %s</font>\n<font size='24'>получила 100 очков ранга</font>", ct ? "Спецназа":"Террористов" );
+		}
+	}
+	//PrintHintTextToAll("<font size='26' color='#f2b700'>Команда %s</font>\n<font size='24'>получила 100 очков ранга</font>", ct ? "Спецназа":"Террористов" );
+}
+
+stock bool IsClientValid(int client) {
+	if(client > 0 && client <= MaxClients && IsClientInGame(client)) return true;
+	return false;
 }
