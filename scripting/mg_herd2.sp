@@ -76,7 +76,7 @@ public void UnloadKv() {
 		Format(buff, sizeof(buff), "%d", i);
 		kvRating.SetFloat(buff, Rating[i]);
 		Format(buff, sizeof(buff), "0%d", i);
-		PrintToServer("%f %s", Rating[i], RatingNames[i]);
+		//PrintToServer("%f %s", Rating[i], RatingNames[i]);
 		if(StrEqual(RatingNames[i], "")) {
 			RatingNames[i] = "null";
 		}
@@ -84,6 +84,7 @@ public void UnloadKv() {
 	}
 	kvRating.ExportToFile(confPath);
 	kvRating.Close();
+	//delete kvRating;
 }
 
 public void OnPluginEnd(){
@@ -108,6 +109,10 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		ClientCommand(client, "firstperson");
 	}
 	if(Started) {
+		if(attacker == g_iTarget1 || attacker == g_iTarget2) {
+			ServerCommand("sm_rank_clientgift %d %d", attacker, 20);
+			PrintToChat(attacker, "%s Вы получили %s%s ранга за убийство курочки!", TAG, COLOR, 20);
+		}
 		static int count = 0;
 		for (int i = 1; i < MaxClients; i++) {
 			if(AC_IsClientValid(i) && IsPlayerAlive(i)) {
@@ -122,8 +127,8 @@ public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 			AC_RemoveNeon(client);
 		} else {
 			if(attacker) {
-				if (attacker == g_iTarget1)TargetCount1++;
-				if (attacker == g_iTarget2)TargetCount2++;
+				if (attacker == g_iTarget1) TargetCount1++;
+				if (attacker == g_iTarget2) TargetCount2++;
 			} 
 		}
 	}
@@ -136,6 +141,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 		PrintToChatAll("%s Мини-игра \"%s%s\x01\" начинается!", TAG, COLOR, TITLE);
 	}
 	if(Started) {
+		//PrintToServerRating();
 		StartTime = GetGameTime();
 		SetConVarBool(FindConVar("mp_teammates_are_enemies"), true);
 		do {
@@ -164,12 +170,12 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 					int type = GetRandomInt(1, 5);
 					switch(type) {
 						case 1: { //chickenbirth
-							AC_SetSpeed(i, 1.15);
+							AC_SetSpeed(i, 1.10);
 							PrintToChat(i, "%s У вас повышенная скорость!", TAG);
 						}
 						case 2: { //ghost
 							SetEntityRenderMode(i, RENDER_TRANSCOLOR);
-  							SetEntityRenderColor(i, 255,255,255,80);
+  							SetEntityRenderColor(i, 255,255,255,70);
   							PrintToChat(i, "%s Вы прозрачный УУУУУУ!", TAG);
 						}
 						case 3: { //christm
@@ -199,12 +205,12 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 					Format(buff2, sizeof(buff2), "%d-2", GetClientUserId(i));
 					smTags.SetString(buff2, buff, true);
 					CS_SetClientClanTag(i, "ПАСТУХ");
-					AC_SetSpeed(i, 1.15);
+					AC_SetSpeed(i, 1.20);
 					AC_CreateBeacon(i, 10, {240,230,0,255});
 					AC_SetNeon(i, "240 230 0 255");
 					CreateTimer(2.0, Timer_PastuhInform, i);
 					GivePlayerItem(i, "weapon_p90");
-					AC_FreezeClient(i, 13);
+					AC_FreezeClient(i, 12);
 					SetEntProp(i, Prop_Send, "m_iHideHUD", HIDEHUD_RADAR);
 				}
 	 		}
@@ -257,7 +263,18 @@ public Action Timer_PastuhInform(Handle timer, int client) {
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast) {
 	if(Started) {
+		int chiks = 0;
+		for(int i = 1; i <= MaxClients; i++) {
+			if(IsClientInGame(i)) {
+				if(IsPlayerAlive(i)) {
+					if(i != g_iTarget1 && i != g_iTarget2){
+						chiks++;
+					}
+				}
+			}
+		}
 		MG_Stop(1);
+		CreateTimer(5.0, Timer_RewardInform, (chiks>0));
 	}
 }
 
@@ -277,6 +294,33 @@ public Action Event_PlayerSpawn(Handle event, const char[] name, bool dontBroadc
 //***********
 public Action Cmd_Herdtest(int client, int args){
 	/* Для тестов */
+	if(IsClientInGame(client) ) {
+		if(args == 0) {
+			if(g_bThirdperson[client]) {
+				ClientCommand(client, "firstperson");
+				g_bThirdperson[client] = !g_bThirdperson[client];
+			} else {
+				ClientCommand(client, "thirdperson");
+				g_bThirdperson[client] = !g_bThirdperson[client];
+			}
+		} else {
+			char buff[32];
+			GetCmdArg(3, buff, sizeof(buff));
+			if(StringToInt(buff)==777) {
+				GetCmdArg(1, buff, sizeof(buff));
+				float scale = StringToFloat(buff);
+				GetCmdArg(2, buff, sizeof(buff));
+				int type = StringToInt(buff);
+				PrintToChat(client, "%f %d", scale, type);
+				//SetEntPropFloat(client, Prop_Data, "m_flModelScale", scale);
+				DispatchKeyValue(client, "ModelScale", "2.0");
+				SetEntPropFloat(client, Prop_Send, "m_flModelScale", scale);
+				SetEntProp(client, Prop_Send, "m_ScaleType", type);
+			} else {
+				PrintToChat(client, "Добаловались, фиг теперь.");
+			}
+		}
+	}
 	return Plugin_Handled;
 }
 
@@ -403,6 +447,7 @@ stock void MG_Stop(int type = 0) {
 			SDKUnhook(i, SDKHook_WeaponEquip, OnWeaponCanUse);
 		}
 	}
+	//PrintToServerRating();
 	PrintToChatAll("%s Мини-игра %s%s\x01 остановлена!", TAG, COLOR, TITLE);
 	MG_GameConfirmStop(id);
 }
@@ -481,6 +526,37 @@ stock void CS_RemoveAllWeapons(int client) {
 				//if (slot == 4 ) return; // Бомба
 				RemovePlayerItem(client, weapon_index);
 				AcceptEntityInput(weapon_index, "kill");
+			}
+		}
+	}
+}
+
+stock void PrintToServerRating() {
+	for (int i = 0; i < sizeof(Rating); i++) {
+		PrintToServer("%d: %s - %f", i, RatingNames[i], Rating[i]);
+	}
+}
+
+public Action Timer_RewardInform(Handle timer, bool chiks) {
+	char buff[128] = "Команда";
+	Format(buff, 128, "%s %s получила %d очков ранга за победу!", buff, chiks ? "Курочек":"Пастухов", RANK_REWARD);
+	PrintToChatAll("%s %s%s\x01 получили %s%d\x01 очков ранга за победу!", TAG, COLOR, chiks ? "Курочки":"Пастухи", COLOR, RANK_REWARD);
+	for(int i = 1; i <= 32; i++) {
+		if (i > 0 && i <= MaxClients && IsClientInGame(i)) {
+			if(IsPlayerAlive(i)) {
+				PrintHudText(HUDChannel_Plugin3, i, 0, buff, 7, HUDIcon_Arm, HUDColor_Yellow, 100.0, 0.0, HUDEffect_Static);
+				
+			} else { 
+				PrintHintText(i, "<font size='26' color='#f2b700'>Команда %s</font>\n<font size='24'>получила 100 очков ранга</font>", chiks ? "Курочек":"Пастухов" );
+			}
+			if(chiks) {
+				if(i != g_iTarget1 && i != g_iTarget2) {
+					ServerCommand("sm_rank_clientgift %d %d", i, RANK_REWARD);
+				}
+			} else {
+				if(i == g_iTarget1 || i == g_iTarget2) {
+					ServerCommand("sm_rank_clientgift %d %d", i, RANK_REWARD);
+				}
 			}
 		}
 	}
