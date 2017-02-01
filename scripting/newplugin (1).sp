@@ -3,6 +3,7 @@ public void OnPluginStart() {
 	RegConsoleCmd("!menu",menu, "!menu");
 }
 
+<<<<<<< HEAD
 {public void OnPluginStart()
 
     RegConsoleCmd("sm_menu", Cmd_MyMeny);
@@ -67,6 +68,21 @@ public Action Cmd_MyMenu(int client, int args) { // Почему так, чит�
 			case 3: {
 				PrintToChat(client, "3!ac");
 	        }
+=======
+public Action My_Command(int client, int args) {
+	if(!args) { // Проверка были ли введены аргументы, 
+	// Если аргументов больше 0, значит args == true,  а значит  !args = false
+ 		PrintToChat(client, "1 О сервере");
+ 		PrintToChat(client, "Введите 2 ...");
+ 		PrintToChat(client, "Введите 3 ...");
+	} else {
+		if(args == 1) {
+			PrintToChat(client, "Текст");
+		} else if(args == 2) {
+			PrintToChat(client, "Вы ввели 2");
+		} else if(args == 2) {
+			PrintToChat(client, "Вы ввели 3");
+>>>>>>> origin/master
 		}
 	}
 	return Plugin_Handled;
